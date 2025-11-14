@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Blackjack With Real Cards</title>
+<style>
+    body{
+        background:#0d0d0d;
+        color:white;
+        font-family:Arial;
+        text-align:center;
+    }
+    img.card{
+        width:80px;
+        margin:5px;
+    }
+    #game, #endingSection, #prizeShop { margin-top:30px; }
+    button{
+        padding:10px 20px;
+        margin:5px;
+        font-size:18px;
+        cursor:pointer;
+        border:none;
+        border-radius:8px;
+    }
+    .hit{ background:#27ae60; }
+    .stand{ background:#2980b9; }
+    .restart{ background:#f1c40f; color:black; }
+    .buyPrize{ background:#e74c3c; }
+    .disabled{ opacity:0.4; pointer-events:none; }
+
+    #prizeShop div{
+        margin:10px auto;
+        width:300px;
+        padding:15px;
+        border:1px solid #444;
+        border-radius:8px;
+    }
+
+    #betSelector button{
+        background:#444;
+        border:1px solid #888;
+    }
+    .selectedBet{
+        background:#16a085 !important;
+        border:1px solid #1abc9c !important;
+    }
+</style>
+</head>
+<body>
+
+<h1>Blackjack With Real Card Images</h1>
+<h3>Starting Money: ₱10,000</h3>
+
+<div id="moneyDisplay">Money: ₱10000</div>
+
+<!-- BET SELECTOR -->
+<h2>Select Bet</h2>
+<div id="betSelector">
+    <button onclick="setBet(500)">₱500</button>
+    <button onclick="setBet(1000)">₱1,000</button>
+    <button onclick="setBet(2000)">₱2,000</button>
+    <button onclick="setBet(5000)">₱5,000</button>
+    <button onclick="setBet(10000)">₱10,000</button>
+</div>
+
+<h3>Current Bet: ₱<span id="currentBet">0</span></h3>
+
+<button class="restart" id="dealBtn" onclick="startGame()" disabled>Deal Cards</button>
+
+<!-- GAME AREA -->
+<div id="game" style="display:none;">
+    <h2>Your Cards:</h2>
+    <div id="playerCards"></div>
+    <h3>Your Total: <span id="playerTotal"></span></h3>
+
+    <h2>Dealer Cards:</h2>
+    <div id="dealerCards"></div>
+    <h3>Dealer Total: <span id="dealerTotal"></span></h3>
+
+    <br>
+    <button class="hit" onclick="hit()">Hit</button>
+    <button class="stand" onclick="stand()">Stand</button>
+    <br><br>
+    <button class="restart" onclick="prepareNextRound()">New Round</button>
+</div>
+
+<!-- PRIZE SHOP -->
+<div id="prizeShop">
+    <h2>Prizes Shop</h2>
+
+    <div>
+        <h3>Gadget – ₱20,000</h3>
+        <button class="buyPrize" id="p1" onclick="buyPrize('Gadget', 20000)">Buy</button>
+    </div>
+
+    <div>
+        <h3>Car – ₱50,000</h3>
+        <button class="buyPrize" id="p2" onclick="buyPrize('Car', 50000)">Buy</button>
+    </div>
+
+    <div>
+        <h3>House – ₱100,000</h3>
+        <button class="buyPrize" id="p3" onclick="buyPrize('House', 100000)">Buy</button>
+    </div>
+
+</div>
+
+<!-- ENDING -->
+<div id="endingSection" style="display:none;">
+    <h1 id="endingTitle"></h1>
+    <h2 id="endingText"></h2>
+    <button class="restart" onclick="resetGame()">Play Again</button>
+</div>
+
+<script>
+// Suits mapping to API format
+const suitCode = {
+    "♠": "S",
+    "♥": "H",
+    "♦": "D",
+    "♣": "C"
+};
+
+// All ranks in PNG format
+const ranks = {
+    "A": "A",
+    "2": "2",
+    "3": "3",
+    "4": "4",
+    "5": "5",
+    "6": "6",
+    "7": "7",
+    "8": "8",
+    "9": "9",
+    "10": "0", // 0 represents 10 in deckofcards API
+    "J": "J",
+    "Q": "Q",
+    "K": "K"
+};
+
+// Initial values
+let money = 10000;
+let bet = 0;
+let playerHand = [];
+let dealerHand = [];
+
+// BET SELECTION
+function setBet(amount){
+    bet = amount;
+    document.getElementById("currentBet").innerText = bet;
+
+    document.getElementById("dealBtn").disabled = false;
+
+    let buttons = document.querySelectorAll("#betSelector button");
+    buttons.forEach(b => b.classList.remove("selectedBet"));
+
+    event.target.classList.add("selectedBet");
+}
+
+// RANDOM CARD GENERATOR
+function getCard(){
+    let nums = ["A",2,3,4,5,6,7,8,9,10,"J","Q","K"];
+    let suits = ["♠","♥","♦","♣"];
+
+    let value = nums[Math.floor(Math.random()*nums.length)];
+    let suit = suits[Math.floor(Math.random()*suits.length)];
+
+    return {value: value, suit: suit};
+}
+
+function cardValue(card){
+    if(card.value === "J" || card.value === "Q" || card.value === "K") return 10;
+    if(card.value === "A") return 11;
+    return card.value;
+}
+
+function total(hand){
+    let sum = 0, aces = 0;
+
+    hand.forEach(card=>{
+        sum += cardValue(card);
+        if(card.value=="A") aces++;
+    });
+
+    while(sum > 21 && aces > 0){
+        sum -= 10;
+        aces--;
+    }
+
+    return sum;
+}
+
+// DISPLAY PNG CARDS
+function displayHand(div, hand){
+    div.innerHTML = "";
+    hand.forEach(card=>{
+        let rank = ranks[card.value];
+        let s = suitCode[card.suit];
+        let img = document.createElement("img");
+        img.className = "card";
+        img.src = `https://deckofcardsapi.com/static/img/${rank}${s}.png`;
+        div.appendChild(img);
+    });
+}
+
+// START GAME AFTER BET
+function startGame(){
+    if(bet == 0){ alert("Choose your bet first."); return; }
+
+    document.getElementById("game").style.display = "block";
+
+    playerHand = [getCard(), getCard()];
+    dealerHand = [getCard(), getCard()];
+
+    updateDisplay();
+
+    // Blackjack check
+    if(total(playerHand) === 21){
+        let prize = bet + bet/2;
+        money += prize;
+        alert("BLACKJACK! You win ₱" + prize);
+        updateDisplay();
+        prepareNextRound();
+        return;
+    }
+
+    document.getElementById("dealBtn").disabled = true;
+}
+
+function updateDisplay(){
+    displayHand(document.getElementById("playerCards"), playerHand);
+    displayHand(document.getElementById("dealerCards"), dealerHand);
+
+    document.getElementById("playerTotal").innerText = total(playerHand);
+    document.getElementById("dealerTotal").innerText = total(dealerHand);
+    document.getElementById("moneyDisplay").innerText = "Money: ₱" + money;
+
+    updatePrizeButtons();
+}
+
+// HIT
+function hit(){
+    playerHand.push(getCard());
+    updateDisplay();
+
+    if(total(playerHand) > 21) loseRound();
+}
+
+// STAND
+function stand(){
+    while(total(dealerHand) < 17){
+        dealerHand.push(getCard());
+    }
+    updateDisplay();
+
+    let p = total(playerHand);
+    let d = total(dealerHand);
+
+    if(d > 21 || p > d) winRound();
+    else if(p === d) alert("Tie! No money lost.");
+    else loseRound();
+}
+
+// HAND OUTCOMES
+function winRound(){
+    money += bet;
+    alert("You won! +₱" + bet);
+    checkEndings();
+    updateDisplay();
+}
+
+function loseRound(){
+    money -= bet;
+    alert("You lost! -₱" + bet);
+    checkEndings();
+    updateDisplay();
+}
+
+// NEW ROUND
+function prepareNextRound(){
+    bet = 0;
+    document.getElementById("currentBet").innerText = "0";
+    document.getElementById("dealBtn").disabled = true;
+
+    let buttons = document.querySelectorAll("#betSelector button");
+    buttons.forEach(b=>b.classList.remove("selectedBet"));
+
+    document.getElementById("game").style.display = "none";
+}
+
+// PRIZES
+function updatePrizeButtons(){
+    document.getElementById("p1").classList.toggle("disabled", money < 20000);
+    document.getElementById("p2").classList.toggle("disabled", money < 50000);
+    document.getElementById("p3").classList.toggle("disabled", money < 100000);
+}
+
+function buyPrize(name, cost){
+    if(money >= cost){
+        money -= cost;
+        showEnding("GOOD ENDING", "You quit gambling and took home a " + name + "!");
+    }
+}
+
+// ENDINGS
+function checkEndings(){
+    if(money <= 0){
+        showEnding("BAD ENDING", "You lost all your money!");
+    }
+}
+
+function showEnding(title, text){
+    document.getElementById("game").style.display = "none";
+    document.getElementById("prizeShop").style.display = "none";
+    document.getElementById("endingSection").style.display = "block";
+
+    document.getElementById("endingTitle").innerText = title;
+    document.getElementById("endingText").innerText = text;
+}
+
+// RESET ALL
+function resetGame(){
+    money = 10000;
+    bet = 0;
+
+    document.getElementById("currentBet").innerText = "0";
+    document.getElementById("game").style.display = "none";
+    document.getElementById("prizeShop").style.display = "block";
+    document.getElementById("dealBtn").disabled = true;
+
+    let buttons = document.querySelectorAll("#betSelector button");
+    buttons.forEach(b=>b.classList.remove("selectedBet"));
+}
+</script>
+</body>
+</html>
