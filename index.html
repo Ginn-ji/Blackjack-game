@@ -298,10 +298,39 @@ function updatePrizeButtons(){
 
 function buyPrize(name, cost){
     if(money >= cost){
+
         money -= cost;
-        showEnding("GOOD ENDING", "You quit gambling and took home a " + name + "!");
+
+        let dialogue = "";
+
+        if(name === "Gadget"){
+            dialogue = 
+            "As you walk away from the table, the neon lights of the casino dance across the screen of your brand-new gadget. " +
+            "You turn it on and the glow hits your face. It feels strange—choosing control instead of greed. " +
+            "A dealer passing by nods knowingly. Not many walk away while winning. But you did. 'Not bad,' you whisper.";
+        }
+
+        if(name === "Car"){
+            dialogue = 
+            "The keys feel heavy in your hand—not because of their weight, but because of what they represent. " +
+            "Outside the casino, your new car gleams under the streetlights. You slide into the driver's seat, the engine humming to life. " +
+            "'I came here for money,' you think, 'but I gained direction.' The road ahead is finally yours.";
+        }
+
+        if(name === "House"){
+            dialogue =
+            "You stand before your new house—your house. The casino's noise now feels like a distant memory. " +
+            "As you unlock the door, the quiet inside wraps around you like a warm blanket. 'I didn’t win a fortune,' you breathe. " +
+            "'I built one.' For the first time, you don’t look back.";
+        }
+
+        showEnding(
+            "GOOD ENDING — " + name.toUpperCase() + " PURCHASED",
+            dialogue
+        );
     }
 }
+
 
 // ENDINGS
 function checkEndings(){
